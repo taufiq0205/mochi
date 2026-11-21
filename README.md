@@ -93,8 +93,8 @@ With the app running, `node scripts/check-auth.mjs` checks signed-out access. `n
 
 [SVG diagram](docs/project-architecture.svg) · [Editable Excalidraw source](docs/project-architecture.excalidraw)
 
-1. **Setup and access.** The browser talks to Next.js Server Actions. Clerk authenticates requests and checks Pro access; Drizzle stores user-owned bots, chats, group membership, and usage records in PostgreSQL. Creating a bot provisions a private Daytona sandbox and initializes its `MEMORY.md`.
-2. **Agent execution.** Next.js authorizes access to a chat and issues scoped Trigger.dev session tokens. The browser streams chat through Trigger.dev; the durable `chat-agent` worker calls DeepSeek through the AI SDK and executes sandbox tools. Group chats support bot selection and handoff between members.
+1. **Setup and access.** The browser talks to Next.js Server Actions. Clerk authenticates requests and checks Pro access; Next.js uses Drizzle and the shared `pg` pool to store bots, chats, group membership, and usage records in Supabase PostgreSQL. Creating a bot provisions a private Daytona sandbox and initializes its `MEMORY.md`.
+2. **Agent execution.** Next.js authorizes access to a chat and issues scoped Trigger.dev session tokens. The browser streams chat through Trigger.dev; the durable `chat-agent` worker calls DeepSeek through the AI SDK and executes sandbox tools. The worker uses the same `pg` pool configuration. Trigger.dev stores chat transcripts. Group chats support bot selection and handoff between members.
 3. **Desktop access.** Server-side authorization provides a signed desktop URL. The browser connects directly to Daytona's Linux desktop through noVNC.
 
 Usage admission reserves AI and sandbox allowances before provider work. Delayed stop tasks, a scheduled sweep, and sandbox TTLs bound compute and storage. Bot memory lives in its sandbox and expires with it; it is not indefinite storage. See [usage and billing](docs/usage-billing.md) for limits, accounting, and lifecycle details.
