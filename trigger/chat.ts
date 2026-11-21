@@ -2,24 +2,15 @@ import { logger } from "@sentry/core"
 import { captureException, flush } from "@sentry/node"
 import { deepSeek } from "@ai-sdk/deepseek"
 import { chat } from "@trigger.dev/sdk/ai"
-import { Pool } from "pg"
 import { z } from "zod"
 import { requirePaidUser } from "../lib/paid-plan"
 import { BILLING_ERROR } from "../lib/billing"
+import { pool } from "../lib/database"
 import { openMeteredSandbox } from "../lib/metered-sandbox"
 import { meteredModel } from "../lib/metered-model"
 import { MAX_OUTPUT_TOKENS, USAGE_ERROR, UsageError } from "../lib/usage-policy"
 import { stepCountIs, tool, type ModelMessage } from "ai"
 import { createSandboxTools } from "../lib/sandbox-tools"
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  idleTimeoutMillis: 5_000,
-  connectionTimeoutMillis: 10_000,
-})
-pool.on("error", () =>
-  logger.error("Unexpected idle database connection error")
-)
 
 const handoff = tool({
   description:
@@ -108,7 +99,6 @@ export const chatAgent = chat
       signal,
       streamText,
     }) => {
-      if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required")
       if (!process.env.DEEPSEEK_API_KEY)
         throw new Error("DEEPSEEK_API_KEY is required")
       const { rows } = await pool.query<{

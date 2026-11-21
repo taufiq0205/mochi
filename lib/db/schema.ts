@@ -31,7 +31,7 @@ export const bots = pgTable(
       .defaultNow(),
   },
   (table) => [index("bots_user_id_idx").on(table.userId)]
-)
+).enableRLS()
 
 export const chatKind = pgEnum("chat_kind", ["direct", "group"])
 
@@ -53,7 +53,7 @@ export const chats = pgTable(
       .defaultNow(),
   },
   (table) => [index("chats_user_id_idx").on(table.userId)]
-)
+).enableRLS()
 
 export const chatMembers = pgTable(
   "chat_members",
@@ -72,7 +72,7 @@ export const chatMembers = pgTable(
     primaryKey({ columns: [table.chatId, table.botId] }),
     index("chat_members_bot_id_idx").on(table.botId),
   ]
-)
+).enableRLS()
 
 export const usagePeriods = pgTable(
   "usage_periods",
@@ -84,7 +84,7 @@ export const usagePeriods = pgTable(
     sandboxMicros: integer("sandbox_micros").notNull().default(0),
   },
   (table) => [primaryKey({ columns: [table.userId, table.periodStart] })]
-)
+).enableRLS()
 
 export const usageLedger = pgTable(
   "usage_ledger",
@@ -109,7 +109,7 @@ export const usageLedger = pgTable(
   (table) => [
     index("usage_ledger_user_period_idx").on(table.userId, table.periodStart),
   ]
-)
+).enableRLS()
 
 export const botsRelations = relations(bots, ({ many }) => ({
   memberships: many(chatMembers),

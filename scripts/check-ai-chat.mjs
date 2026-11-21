@@ -203,9 +203,8 @@ const { chatAgent } = load("../trigger/chat.ts", {
       }),
     },
   },
-  pg: {
-    Pool: class {
-      on() {}
+  "../lib/database": {
+    pool: {
       async query(sql, values) {
         queries.push({ sql, values })
         if (queryFailure) throw new Error("Database unavailable")
@@ -215,7 +214,7 @@ const { chatAgent } = load("../trigger/chat.ts", {
             : rows
           ).map((row) => ({ userId: "user_1", ...row })),
         }
-      }
+      },
     },
   },
 })
@@ -281,10 +280,8 @@ for (const invalid of [
 ]) {
   await assert.rejects(chatAgent.onValidateMessages({ messages: invalid }))
 }
-const oldDatabase = process.env.DATABASE_URL
 const oldKey = process.env.DEEPSEEK_API_KEY
 try {
-  process.env.DATABASE_URL = "stub"
   process.env.DEEPSEEK_API_KEY = "stub"
   const signal = new AbortController().signal
   const resolvedTools = chatAgent.tools({ chatId: "chat_1" })
@@ -674,8 +671,6 @@ try {
     "Could not get a reply. Please try again."
   )
 } finally {
-  if (oldDatabase === undefined) delete process.env.DATABASE_URL
-  else process.env.DATABASE_URL = oldDatabase
   if (oldKey === undefined) delete process.env.DEEPSEEK_API_KEY
   else process.env.DEEPSEEK_API_KEY = oldKey
 }

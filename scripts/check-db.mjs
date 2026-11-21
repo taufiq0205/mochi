@@ -3,12 +3,12 @@ import nextEnv from "@next/env"
 import { sql } from "drizzle-orm"
 
 nextEnv.loadEnvConfig(process.cwd())
-const { db } = await import("../lib/db.ts")
+const { db } = await import("../lib/database.ts")
 
 try {
   const result = await db.execute(sql`select 1 as ok`)
   assert.equal(result.rows[0].ok, 1)
-  console.log("Database smoke check passed: Drizzle connected to Neon.")
+  console.log("Database smoke check passed: Drizzle connected to PostgreSQL.")
 } finally {
   await db.$client.end()
 }
