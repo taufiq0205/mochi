@@ -2,7 +2,7 @@
 
 Mochi is an AI agent workspace for creating bots, chatting with them individually or in groups, and giving them tools to work inside isolated cloud sandboxes. Each bot has its own instructions, avatar, and sandbox-backed memory. Agents can run shell commands, work with files, and interact with a Linux desktop that users can view through the browser.
 
-The app uses Next.js and React for the interface, Clerk for authentication and subscriptions, Neon PostgreSQL with Drizzle for application data, Trigger.dev for durable agent execution, DeepSeek through the AI SDK for model calls, and Daytona for sandbox compute. Sentry monitors the app and workers.
+The app uses Next.js and React for the interface, Clerk for authentication and subscriptions, Supabase PostgreSQL with Drizzle for application data, Trigger.dev for durable agent execution, DeepSeek through the AI SDK for model calls, and Daytona for sandbox compute. Sentry monitors the app and workers.
 
 ## Prerequisites and how to run
 
@@ -10,7 +10,7 @@ The app uses Next.js and React for the interface, Clerk for authentication and s
 
 - Node.js 24 and npm. The Trigger.dev worker is configured for Node.js 24.
 - A Clerk application with a `pro` subscription plan. Bot creation, chat, and sandbox access require Pro; the worker also verifies the subscription period.
-- A Neon PostgreSQL database with pooled and direct connection URLs.
+- A Supabase PostgreSQL database. In **Connect**, copy the transaction pooler URL and the direct URL. Use the session pooler for schema setup on IPv4-only networks. In **Data API** settings, turn off **Enable Data API** for this database-only project before creating tables.
 - A Trigger.dev project, a development environment key, and CLI access to that project.
 - DeepSeek and Daytona API keys, with access to sandbox compute and desktop functionality.
 
@@ -31,8 +31,8 @@ For an existing checkout, keep your current `.env.local`. Fill in these values f
 | --- | --- |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk's public development key |
 | `CLERK_SECRET_KEY` | Server-side Clerk access |
-| `DATABASE_URL` | Pooled Neon URL for application and worker queries |
-| `DATABASE_URL_UNPOOLED` | Direct Neon URL for Drizzle schema changes |
+| `DATABASE_URL` | Supabase transaction pooler URL (port `6543`) for application and worker queries |
+| `DATABASE_URL_UNPOOLED` | Supabase direct or session pooler URL (port `5432`) for Drizzle schema changes |
 | `DEEPSEEK_API_KEY` | Model access |
 | `DAYTONA_API_KEY` | Sandbox creation and operations |
 | `TRIGGER_SECRET_KEY` | Trigger.dev development environment key |
@@ -91,7 +91,7 @@ With the app running, `node scripts/check-auth.mjs` checks signed-out access. `n
 
 [SVG diagram](docs/project-architecture.svg) · [Editable Excalidraw source](docs/project-architecture.excalidraw)
 
-1. **Setup and access.** The browser talks to Next.js Server Actions. Clerk authenticates requests and checks Pro access; Drizzle stores user-owned bots, chats, group membership, and usage records in Neon. Creating a bot provisions a private Daytona sandbox and initializes its `MEMORY.md`.
+1. **Setup and access.** The browser talks to Next.js Server Actions. Clerk authenticates requests and checks Pro access; Drizzle stores user-owned bots, chats, group membership, and usage records in PostgreSQL. Creating a bot provisions a private Daytona sandbox and initializes its `MEMORY.md`.
 2. **Agent execution.** Next.js authorizes access to a chat and issues scoped Trigger.dev session tokens. The browser streams chat through Trigger.dev; the durable `chat-agent` worker calls DeepSeek through the AI SDK and executes sandbox tools. Group chats support bot selection and handoff between members.
 3. **Desktop access.** Server-side authorization provides a signed desktop URL. The browser connects directly to Daytona's Linux desktop through noVNC.
 
