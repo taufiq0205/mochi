@@ -19,11 +19,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 This is a development project. There is no backwards compatibility and the data is worthless. Prefer data loss: never backfill, migrate, or preserve existing rows, and never spend effort on keeping old data working. Every schema change means a clean slate.
 
+- Use Supabase PostgreSQL with the shared `pg` pool and Drizzle. Keep row-level security enabled on app tables. See the README for connection and deployment settings.
 - Apply schema changes only with `npm run db:push` (`drizzle-kit push`). Never generate or run migrations, or create migration artifacts.
 
 ## Forms
 
-- Use the shadcn skill for form UI, Clerk for authentication, and Neon for database work. Reuse existing components and read the relevant skill documentation before implementation.
+- Use the shadcn skill for form UI and Clerk for authentication. Reuse existing components and read the relevant skill documentation before implementation.
 - Compose forms with React Hook Form, `zodResolver`, and shadcn `FieldGroup`, `Field`, `FieldLabel`, and `FieldError`. Use `Controller` for controlled inputs and `useWatch` for reactive values.
 - Generate insert validation from the Drizzle table with `drizzle-zod`. Derive the client form schema by selecting editable fields; share validation between the form and server action. Infer types from Zod and define trimming and length limits in the schema.
 - Keep mutations in `actions/`. Authenticate each action with `await auth.protect()`, derive `userId` from Clerk, and validate untrusted input before inserting. Ownership, IDs, timestamps, and other server-managed fields must come from trusted server values or database defaults.

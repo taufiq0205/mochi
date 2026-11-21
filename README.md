@@ -38,7 +38,7 @@ For an existing checkout, keep your current `.env.local`. Fill in these values f
 | `TRIGGER_SECRET_KEY` | Trigger.dev development environment key |
 | `SENTRY_AUTH_TOKEN` | Optional build-time source-map upload token |
 
-Keep the Clerk route defaults from `.env.example`. Use `sslmode=verify-full` in the database URLs. Store secrets only in ignored environment files or provider environment settings; never prefix secrets with `NEXT_PUBLIC_`.
+Keep the Clerk route defaults from `.env.example`. Download the Supabase CA certificate and keep it outside the repository. Add `sslmode=verify-full` and `sslrootcert` with the absolute certificate path to both local database URLs. Store secrets only in ignored environment files or provider environment settings; never prefix secrets with `NEXT_PUBLIC_`.
 
 Apply the schema to the intended development database:
 
@@ -73,7 +73,9 @@ npm run build
 npm run start
 ```
 
-Deploy Trigger workers separately from the Next.js app. Hosted workers need `DATABASE_URL`, `CLERK_SECRET_KEY`, `DEEPSEEK_API_KEY`, and `DAYTONA_API_KEY` for the matching environment. Preserve deployed Trigger credentials: a local development `TRIGGER_SECRET_KEY` must never replace a production key. Disable environment auto-sync when deploying workers to avoid overwriting their existing credentials. Set `SENTRY_AUTH_TOKEN` in each build environment that uploads source maps.
+Set `SUPABASE_DATABASE_URL` to the transaction pooler URL in Vercel and Trigger.dev for the target environment. Store it as a secret. Set `SUPABASE_CA_CERT` to the certificate contents in PEM format. The shared pool verifies TLS with that certificate and uses `DATABASE_URL` when `SUPABASE_DATABASE_URL` is unset.
+
+Deploy Trigger workers separately from the Next.js app. Workers also need `CLERK_SECRET_KEY`, `DEEPSEEK_API_KEY`, and `DAYTONA_API_KEY` for the matching environment. Preserve deployed Trigger credentials: a local development `TRIGGER_SECRET_KEY` must never replace a production key. Disable environment auto-sync when deploying workers to avoid overwriting their existing credentials. Set `SENTRY_AUTH_TOKEN` in each build environment that uploads source maps.
 
 ### Checks
 
