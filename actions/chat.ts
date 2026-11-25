@@ -1,6 +1,6 @@
 "use server"
 
-import { logger } from "@sentry/core"
+import { logger, startSpan } from "@sentry/core"
 import { auth } from "@clerk/nextjs/server"
 import { BILLING_ERROR, PAID_PLAN } from "@/lib/billing"
 import { auth as triggerAuth, configure } from "@trigger.dev/sdk"
@@ -38,8 +38,19 @@ export async function mintChatAccessToken(chatId: string) {
 }
 
 export async function loadChatTranscript({ chatId }: { chatId: string }) {
-  await authorizeChat(chatId)
-  const result = await loadTranscript({ chatId })
-  logger.info("Chat transcript loaded", { chat_id: chatId })
-  return result
+  return startSpan(
+    { name: "mochi.chat.transcript", op: "chat.load" },
+    async () => {
+      await startSpan(
+        { name: "mochi.chat.transcript.authorize", op: "chat.load" },
+        () => authorizeChat(chatId)
+      )
+      const result = await startSpan(
+        { name: "mochi.chat.transcript.read", op: "chat.load" },
+        () => loadTranscript({ chatId })
+      )
+      logger.info("Chat transcript loaded", { chat_id: chatId })
+      return result
+    }
+  )
 }

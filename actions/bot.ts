@@ -1,6 +1,6 @@
 "use server"
 
-import { logger } from "@sentry/core"
+import { logger, startSpan } from "@sentry/core"
 import { and, eq, notExists, sql } from "drizzle-orm"
 import { auth } from "@clerk/nextjs/server"
 import { BILLING_ERROR, PAID_PLAN } from "@/lib/billing"
@@ -35,43 +35,68 @@ export async function createBot(input: unknown) {
     return { error: "Check the bot details and try again." }
   }
 
-  let stage = "create sandbox"
+  let stage = "reserve sandbox creation"
   let sandbox: Sandbox | undefined
   let lease: Awaited<ReturnType<typeof reserveSandboxCreation>> | undefined
   try {
-    lease = await reserveSandboxCreation(userId)
-    sandbox = await getDaytona().create(
-      {
-        name: lease.name,
-        ttlMinutes: SANDBOX_TTL_MINUTES,
-        autoStopInterval: 1,
-        autoDeleteInterval: STORAGE_TTL_MINUTES,
-        public: false,
-      },
-      { timeout: 60 }
+    const reservation = await startSpan(
+      { name: "mochi.bot.reserve", op: "bot.create" },
+      () => reserveSandboxCreation(userId)
     )
+    lease = reservation
+    stage = "create sandbox"
+    const createdSandbox = await startSpan(
+      { name: "mochi.bot.sandbox.create", op: "bot.create" },
+      () =>
+        getDaytona().create(
+          {
+            name: reservation.name,
+            ttlMinutes: SANDBOX_TTL_MINUTES,
+            autoStopInterval: 1,
+            autoDeleteInterval: STORAGE_TTL_MINUTES,
+            public: false,
+          },
+          { timeout: 60 }
+        )
+    )
+    sandbox = createdSandbox
     sandboxCost(sandbox.cpu, sandbox.memory, sandbox.disk, sandbox.gpu)
     stage = "create MEMORY.md"
-    await sandbox.fs.uploadFile(Buffer.alloc(0), "MEMORY.md", 60)
+    await startSpan({ name: "mochi.bot.memory.init", op: "bot.create" }, () =>
+      createdSandbox.fs.uploadFile(Buffer.alloc(0), "MEMORY.md", 60)
+    )
     stage = "stop sandbox"
-    await sandbox.stop()
-    await sandbox.setTtl(STORAGE_TTL_MINUTES)
-    const sandboxId = sandbox.id
+    await startSpan({ name: "mochi.bot.sandbox.stop", op: "bot.create" }, () =>
+      createdSandbox.stop()
+    )
+    stage = "set sandbox retention"
+    await startSpan(
+      { name: "mochi.bot.sandbox.retention", op: "bot.create" },
+      () => createdSandbox.setTtl(STORAGE_TTL_MINUTES)
+    )
     stage = "save bot and chat"
-    await db.transaction(async (tx) => {
-      const [bot] = await tx
-        .insert(bots)
-        .values(insertBotSchema.parse({ ...parsed.data, userId, sandboxId }))
-        .returning({ id: bots.id })
-      const [chat] = await tx
-        .insert(chats)
-        .values({ userId, kind: "direct" })
-        .returning({ id: chats.id })
-      await tx.insert(chatMembers).values({ chatId: chat.id, botId: bot.id })
-      await tx.execute(
-        sql`UPDATE usage_ledger SET closed_at=now(), settled_at=now() WHERE id=${lease!.id}`
-      )
-    })
+    await startSpan({ name: "mochi.bot.persist", op: "bot.create" }, () =>
+      db.transaction(async (tx) => {
+        const [bot] = await tx
+          .insert(bots)
+          .values(
+            insertBotSchema.parse({
+              ...parsed.data,
+              userId,
+              sandboxId: createdSandbox.id,
+            })
+          )
+          .returning({ id: bots.id })
+        const [chat] = await tx
+          .insert(chats)
+          .values({ userId, kind: "direct" })
+          .returning({ id: chats.id })
+        await tx.insert(chatMembers).values({ chatId: chat.id, botId: bot.id })
+        await tx.execute(
+          sql`UPDATE usage_ledger SET closed_at=now(), settled_at=now() WHERE id=${reservation.id}`
+        )
+      })
+    )
   } catch (error) {
     logger.error("Bot creation failed", {
       stage,

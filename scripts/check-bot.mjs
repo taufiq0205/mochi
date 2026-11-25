@@ -174,6 +174,7 @@ const actions = {}
 new Function("require", "exports", compiled)((name) => {
   if (name === "@sentry/core")
     return {
+      startSpan: sentryCore.startSpan,
       logger: {
         ...sentryCore.logger,
         error: (...args) => telemetry.push(args),
