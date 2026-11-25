@@ -40,14 +40,14 @@ For an existing checkout, keep your current `.env.local`. Fill in these values f
 
 Keep the Clerk route defaults from `.env.example`. Download the Supabase CA certificate and keep it outside the repository. Add `sslmode=verify-full` and `sslrootcert` with the absolute certificate path to both local database URLs. Store secrets only in ignored environment files or provider environment settings; never prefix secrets with `NEXT_PUBLIC_`.
 
-Apply the schema to the intended development database:
+Use a clean development database for each schema change. Confirm that `DATABASE_URL` and `DATABASE_URL_UNPOOLED` point to the intended database before applying the schema:
 
 ```bash
 npm run db:push
 npm run db:check
 ```
 
-Schema changes use Drizzle push only; do not generate or run migrations. Review destructive changes before applying them. `db:push` targets `DATABASE_URL_UNPOOLED`.
+`db:push` is the only schema-change command. It targets `DATABASE_URL_UNPOOLED`. Review destructive changes before applying them.
 
 ### Start the app and worker
 
@@ -85,7 +85,9 @@ npm run lint
 node scripts/check-sentry.mjs
 ```
 
-With the app running, `node scripts/check-auth.mjs` checks signed-out access. `npm run db:check` checks the live database connection. The Sentry script uses stubs; it does not prove live telemetry delivery.
+Repository-wide lint currently reports errors in skill examples and application components. To check specific files, run `npm run lint -- path/to/file.ts`.
+
+With the app running, `node scripts/check-auth.mjs` checks signed-out access. `npm run db:check` checks the live database connection. The Sentry script uses stubs.
 
 ## Architecture
 
@@ -94,8 +96,8 @@ With the app running, `node scripts/check-auth.mjs` checks signed-out access. `n
 [SVG diagram](docs/project-architecture.svg) · [Editable Excalidraw source](docs/project-architecture.excalidraw)
 
 1. **Setup and access.** The browser talks to Next.js Server Actions. Clerk authenticates requests and checks Pro access; Next.js uses Drizzle and the shared `pg` pool to store bots, chats, group membership, and usage records in Supabase PostgreSQL. Creating a bot provisions a private Daytona sandbox and initializes its `MEMORY.md`.
-2. **Agent execution.** Next.js authorizes access to a chat and issues scoped Trigger.dev session tokens. The browser streams chat through Trigger.dev; the durable `chat-agent` worker calls DeepSeek through the AI SDK and executes sandbox tools. The worker uses the same `pg` pool configuration. Trigger.dev stores chat transcripts. Group chats support bot selection and handoff between members.
-3. **Desktop access.** Server-side authorization provides a signed desktop URL. The browser connects directly to Daytona's Linux desktop through noVNC.
+2. **Agent execution.** Next.js authorizes chat access and issues scoped Trigger.dev session tokens. The browser streams replies through Trigger.dev. The `chat-agent` worker calls DeepSeek through the AI SDK and uses the same `pg` pool configuration. Direct chats have the full sandbox tool set. Group chats have per-bot memory tools, bot selection, and handoff between members. Trigger.dev stores transcripts. The sidebar currently orders chats by creation time and leaves message previews blank.
+3. **Desktop access.** For direct chats, server-side authorization provides a signed desktop URL. The browser connects directly to Daytona's Linux desktop through noVNC.
 
 Usage admission reserves AI and sandbox allowances before provider work. Delayed stop tasks, a scheduled sweep, and sandbox TTLs bound compute and storage. Bot memory lives in its sandbox and expires with it; it is not indefinite storage. See [usage and billing](docs/usage-billing.md) for limits, accounting, and lifecycle details.
 
